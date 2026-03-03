@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neuro-Look Caretaker Station</title>
+    <style>
+        body { 
+            background-color: #0d0d0d; 
+            color: #e0e0e0; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            text-align: center; 
+            padding-top: 50px; 
+            margin: 0;
+        }
+        
+        .header {
+            margin-bottom: 40px;
+        }
+
+        h1 { 
+            color: #00e676; 
+            text-transform: uppercase; 
+            letter-spacing: 2px;
+            font-size: 2.5rem;
+            margin: 0;
+        }
+
+        .status-dot {
+            height: 12px;
+            width: 12px;
+            background-color: #00e676;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 10px #00e676;
+            animation: pulse 2s infinite;
+        }
+
+        .card { 
+            border: 1px solid #333; 
+            padding: 40px; 
+            margin: 0 auto; 
+            width: 70%; 
+            max-width: 600px;
+            border-radius: 15px; 
+            background: linear-gradient(145deg, #1a1a1a, #222);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+        }
+
+        h2 { color: #888; font-size: 1rem; text-transform: uppercase; margin-bottom: 20px; }
+
+        #alert-text { 
+            font-size: 32px; 
+            font-weight: bold; 
+            color: #fff; 
+            min-height: 50px;
+        }
+
+        #timestamp {
+            color: #666;
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+
+        .critical {
+            border-color: #ff3d00 !important;
+            box-shadow: 0 0 30px rgba(255, 61, 0, 0.4) !important;
+            background: #2a1a1a !important;
+        }
+
+        .critical #alert-text { color: #ff3d00 !important; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .btn-test {
+            margin-top: 50px;
+            padding: 10px 20px;
+            background: #333;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1><span class="status-dot"></span> Neuro-Look Station</h1>
+        <p style="color: #666;">Real-time ALS Assistive Monitoring</p>
+    </div>
+
+    <div class="card" id="monitor-card">
+        <h2>Latest Patient Request</h2>
+        <div id="alert-text">Waiting for connection...</div>
+        <div id="timestamp">--:--:--</div>
+    </div>
+
+    <audio id="alert-sound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+
+    <button class="btn-test" onclick="simulateAlert()">Test Alert (Click me first to enable Audio)</button>
+
+    <script>
+        const THING_NAME = "neuro-look-demo-123"; // Must match Python script
+        let lastAlertTime = "";
+        const card = document.getElementById("monitor-card");
+        const alertText = document.getElementById("alert-text");
+        const timeText = document.getElementById("timestamp");
+        const audio = document.getElementById("alert-sound");
+
+        function updateDashboard() {
+            fetch(`https://dweet.io/get/latest/dweet/for/${THING_NAME}`)
+                .then(response => response.json())
+                .then(data => {
+                    // 1. SAFETY CHECK: Check if data exists
+                    if (!data.with || data.with.length === 0) {
+                        console.log("No data found yet.");
+                        return; 
+                    }
+
+                    const dweet = data.with[0];
+                    const content = dweet.content;
+                    const created = dweet.created;
+
+                    // 2. CHECK FOR NEW DATA
+                    if (created !== lastAlertTime) {
+                        // It's a new message!
+                        lastAlertTime = created;
+                        
+                        // Update Text
+                        alertText.innerText = content.alert;
+                        timeText.innerText = "Received: " + new Date(created).toLocaleTimeString();
+
+                        // Visual Flash Effect
+                        triggerVisualAlert();
+                        
+                        // Play Sound
+                        try { audio.play(); } catch(e) { console.log("Audio blocked until user click"); }
+                    }
+                })
+                .catch(err => console.error("Fetch error:", err));
+        }
+
+        function triggerVisualAlert() {
+            // Add red glow class
+            card.classList.add("critical");
+            
+            // Remove it after 2 seconds
+            setTimeout(() => {
+                card.classList.remove("critical");
+            }, 2000);
+        }
+
+        // Fake alert for testing
+        function simulateAlert() {
+            alertText.innerText = "TEST ALERT: Need Water";
+            timeText.innerText = "Received: " + new Date().toLocaleTimeString();
+            triggerVisualAlert();
+            audio.play();
+        }
+
+        // Poll every 2 seconds
+        setInterval(updateDashboard, 2000);
+        
+        // Run immediately on load
+        updateDashboard();
+    </script>
+</body>
+</html>
